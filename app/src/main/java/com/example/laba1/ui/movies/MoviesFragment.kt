@@ -2,16 +2,15 @@ package com.example.laba1.ui.movies
 
 import android.app.Activity
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.AsyncTask
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.room.Room
 import com.example.laba1.*
 import com.squareup.picasso.Picasso
@@ -94,11 +93,9 @@ class MoviesFragment : Fragment() {
 
     fun reloadList(list: List<MoviePreviewFullInfo>)
     {
-        frMoviesVll.removeAllViews()
+//        frMoviesRecycler.removeAllViews()
 
-        list.forEach{
-            createCard(it)
-        }
+        createCards(list)
     }
 
     fun updateCache(list: List<MoviePreviewFullInfo>)
@@ -132,6 +129,8 @@ class MoviesFragment : Fragment() {
             }
         }
 
+        frMoviesRecycler.layoutManager = LinearLayoutManager(activity)
+
         super.onViewCreated(view, savedInstanceState)
     }
 
@@ -154,45 +153,60 @@ class MoviesFragment : Fragment() {
         AddFavoriteTask(WeakReference(requireActivity())).execute()
     }
 
-    fun createCard(imdbElementInfo: MoviePreviewFullInfo)
-    {
-        val cardWidget = layoutInflater.inflate(R.layout.card_layout, frMoviesVll, false)
+    fun createCards(list: List<MoviePreviewFullInfo>) {
+        class ViewHolder(view: View) : RecyclerView.ViewHolder(view)
 
-        cardWidget.cardTitle.text = imdbElementInfo.title
-        cardWidget.cardImdbRating.text = imdbElementInfo.imdbRating
+        class MoviesRecyclerAdapter(val listInfo: List<MoviePreviewFullInfo>) : RecyclerView.Adapter<ViewHolder>() {
 
-        Picasso.get().load(imdbElementInfo.imageUrl).into(cardWidget.cardImage)
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+                return ViewHolder(layoutInflater.inflate(R.layout.card_layout, parent, false))
+            }
 
-        val showMovieInfo = {
-            startActivity(
-                Intent(context, MovieInfoActivity::class.java).apply {
-                    putExtra("userId", userId)
-                    putExtra("movieId", imdbElementInfo.movieId)
+            override fun getItemCount(): Int {
+                return listInfo.size
+            }
+
+            override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+                val cardWidget = holder.itemView
+                val imdbElementInfo = listInfo[position]
+
+                cardWidget.cardTitle.text = imdbElementInfo.title
+                cardWidget.cardImdbRating.text = imdbElementInfo.imdbRating
+
+                Picasso.get().load(imdbElementInfo.imageUrl).into(cardWidget.cardImage)
+
+                val showMovieInfo = {
+                    startActivity(
+                        Intent(context, MovieInfoActivity::class.java).apply {
+                            putExtra("userId", userId)
+                            putExtra("movieId", imdbElementInfo.movieId)
+                        }
+                    )
                 }
-            )
-        }
 
-        cardWidget.setOnClickListener{
-            showMovieInfo()
-        }
+                cardWidget.setOnClickListener{
+                    showMovieInfo()
+                }
 
-        registerForContextMenu(cardWidget)
-        cardWidget.setOnCreateContextMenuListener { menu, v, menuInfo ->
-            //menu.setHeaderTitle("Context Menu");
-            menu.add(0, v.id, 0, "Info").setOnMenuItemClickListener {
-                showMovieInfo()
-                true
+                registerForContextMenu(cardWidget)
+                cardWidget.setOnCreateContextMenuListener { menu, v, menuInfo ->
+                    //menu.setHeaderTitle("Context Menu");
+                    menu.add(0, v.id, 0, "Info").setOnMenuItemClickListener {
+                        showMovieInfo()
+                        true
+                    }
+                    menu.add(0, v.id, 0, "Add To Favorite").setOnMenuItemClickListener {
+                        addFavorite(Favorite(userId, imdbElementInfo.movieId))
+                        true
+                    }
+                }
+
+                frMoviesBtnToTop.setOnClickListener {
+                    frMoviesRecycler.smoothScrollToPosition(0)
+                }
             }
-            menu.add(0, v.id, 0, "Add To Favorite").setOnMenuItemClickListener {
-                addFavorite(Favorite(userId, imdbElementInfo.movieId))
-                true
-            }
         }
 
-        frMoviesBtnToTop.setOnClickListener {
-            frMoviesScroll.smoothScrollTo(0, 0)
-        }
-
-        frMoviesVll.addView(cardWidget)
+        frMoviesRecycler.adapter = MoviesRecyclerAdapter(list)
     }
 }

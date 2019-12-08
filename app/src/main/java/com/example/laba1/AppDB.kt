@@ -129,10 +129,10 @@ interface UserDao {
     @Query("SELECT * FROM User")
     fun selectAll(): List<User>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insert(element: User)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insertMultiple(elements: List<User>)
 
     @Delete

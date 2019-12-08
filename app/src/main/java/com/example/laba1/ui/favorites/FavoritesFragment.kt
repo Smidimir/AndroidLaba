@@ -9,7 +9,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.room.Room
 import com.example.laba1.*
 import com.squareup.picasso.Picasso
@@ -50,11 +51,7 @@ class FavoritesFragment : Fragment() {
 
     fun reloadList(list: List<MoviePreviewFullInfo>)
     {
-        frFavoritesVll.removeAllViews()
-
-        list.forEach{
-            createCard(it)
-        }
+        createCards(list)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -67,6 +64,8 @@ class FavoritesFragment : Fragment() {
         loadFavorites { favoritesList ->
             reloadList(favoritesList)
         }
+
+        frFavoritesRecycler.layoutManager = LinearLayoutManager(activity)
     }
 
     fun removeFavorite(userId: Int, movieId: Int) {
@@ -88,54 +87,69 @@ class FavoritesFragment : Fragment() {
         AddFavoriteTask(WeakReference(requireActivity())).execute()
     }
 
-    fun createCard(imdbElementInfo: MoviePreviewFullInfo)
-    {
-        val cardWidget = layoutInflater.inflate(R.layout.card_layout, frFavoritesVll, false)
+    fun createCards(list: List<MoviePreviewFullInfo>) {
+        class ViewHolder(view: View) : RecyclerView.ViewHolder(view)
 
-        cardWidget.cardTitle.text = imdbElementInfo.title
-        cardWidget.cardImdbRating.text = imdbElementInfo.imdbRating
+        class MoviesRecyclerAdapter(val listInfo: List<MoviePreviewFullInfo>) : RecyclerView.Adapter<ViewHolder>() {
 
-        Picasso.get().load(imdbElementInfo.imageUrl).into(cardWidget.cardImage)
-
-        cardWidget.setOnClickListener {
-            startActivity(
-                Intent(context, MovieInfoActivity::class.java).apply {
-                    putExtra("userId", imdbElementInfo.movieId) // TODO
-                    putExtra("movieId", imdbElementInfo.movieId)
-                }
-            )
-        }
-
-        val showMovieInfo = {
-            startActivity(
-                Intent(context, MovieInfoActivity::class.java).apply {
-                    putExtra("userId", userId)
-                    putExtra("movieId", imdbElementInfo.movieId)
-                }
-            )
-        }
-
-        cardWidget.setOnClickListener {
-            showMovieInfo()
-        }
-
-        registerForContextMenu(cardWidget)
-        cardWidget.setOnCreateContextMenuListener { menu, v, menuInfo ->
-            //menu.setHeaderTitle("Context Menu");
-            menu.add(0, v.id, 0, "Info").setOnMenuItemClickListener {
-                showMovieInfo()
-                true
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+                return ViewHolder(layoutInflater.inflate(R.layout.card_layout, parent, false))
             }
-            menu.add(0, v.id, 0, "Remove From Favorite").setOnMenuItemClickListener {
-                removeFavorite(userId, imdbElementInfo.movieId)
 
-                loadFavorites { favoritesList ->
-                    reloadList(favoritesList)
+            override fun getItemCount(): Int {
+                return listInfo.size
+            }
+
+            override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+                val cardWidget = holder.itemView
+                val imdbElementInfo = listInfo[position]
+
+                cardWidget.cardTitle.text = imdbElementInfo.title
+                cardWidget.cardImdbRating.text = imdbElementInfo.imdbRating
+
+                Picasso.get().load(imdbElementInfo.imageUrl).into(cardWidget.cardImage)
+
+                cardWidget.setOnClickListener {
+                    startActivity(
+                        Intent(context, MovieInfoActivity::class.java).apply {
+                            putExtra("userId", imdbElementInfo.movieId) // TODO
+                            putExtra("movieId", imdbElementInfo.movieId)
+                        }
+                    )
                 }
-                true
+
+                val showMovieInfo = {
+                    startActivity(
+                        Intent(context, MovieInfoActivity::class.java).apply {
+                            putExtra("userId", userId)
+                            putExtra("movieId", imdbElementInfo.movieId)
+                        }
+                    )
+                }
+
+                cardWidget.setOnClickListener {
+                    showMovieInfo()
+                }
+
+                registerForContextMenu(cardWidget)
+                cardWidget.setOnCreateContextMenuListener { menu, v, menuInfo ->
+                    //menu.setHeaderTitle("Context Menu");
+                    menu.add(0, v.id, 0, "Info").setOnMenuItemClickListener {
+                        showMovieInfo()
+                        true
+                    }
+                    menu.add(0, v.id, 0, "Remove From Favorite").setOnMenuItemClickListener {
+                        removeFavorite(userId, imdbElementInfo.movieId)
+
+                        loadFavorites { favoritesList ->
+                            reloadList(favoritesList)
+                        }
+                        true
+                    }
+                }
             }
         }
 
-        frFavoritesVll.addView(cardWidget)
+        frFavoritesRecycler.adapter = MoviesRecyclerAdapter(list)
     }
 }
