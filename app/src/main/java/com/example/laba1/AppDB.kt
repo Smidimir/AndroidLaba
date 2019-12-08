@@ -45,6 +45,13 @@ data class MoviePageInfo(
     var id: Int = 0
 }
 
+@Entity(indices = [Index(value = ["userId", "movieId"], name = "favorite_unique_index", unique = true)])
+data class Favorite(val userId: Int, val movieId: Int)
+{
+    @PrimaryKey(autoGenerate = true)
+    var id: Int = 0
+}
+
 data class MoviePreviewFullInfo(
     val movieId: Int,
     val title: String,
@@ -193,9 +200,33 @@ interface MoviePreviewInfoDao {
 }
 
 @Dao
+interface FavoriteDao {
+    @Query("SELECT * FROM Favorite ORDER BY movieId ASC")
+    fun selectAll(): List<Favorite>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insert(element: Favorite)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertMultiple(elements: List<Favorite>)
+
+    @Delete
+    fun delete(element: Favorite)
+
+    @Query("DELETE FROM Favorite WHERE userId = :userId AND movieId = :movieId")
+    fun deleteByUserAndMovieId(userId: Int, movieId: Int)
+
+    @Query("DELETE FROM Favorite")
+    fun deleteAll()
+}
+
+@Dao
 interface MoviePreviewFullInfoDao {
     @Query("SELECT MovieCommonInfo.movieId, MovieCommonInfo.title, MovieCommonInfo.imdbRating, MovieCommonInfo.pageUrl, MoviePreviewInfo.topPosition, MoviePreviewInfo.imageUrl FROM MovieCommonInfo INNER JOIN MoviePreviewInfo ON MovieCommonInfo.movieId = MoviePreviewInfo.movieId ORDER BY topPosition ASC")
     fun selectTop(): List<MoviePreviewFullInfo>
+
+    @Query("SELECT MovieCommonInfo.movieId, MovieCommonInfo.title, MovieCommonInfo.imdbRating, MovieCommonInfo.pageUrl, MoviePreviewInfo.topPosition, MoviePreviewInfo.imageUrl FROM MovieCommonInfo INNER JOIN MoviePreviewInfo ON MovieCommonInfo.movieId = MoviePreviewInfo.movieId INNER JOIN Favorite ON MovieCommonInfo.movieId = Favorite.movieId WHERE Favorite.userId = :userId ORDER BY topPosition ASC")
+    fun selectFavoritesForCurrentUser(userId: Int): List<MoviePreviewFullInfo>
 }
 
 @Database
@@ -204,6 +235,7 @@ interface MoviePreviewFullInfoDao {
         ,   MovieCommonInfo::class
         ,   MoviePreviewInfo::class
         ,   MoviePageInfo::class
+        ,   Favorite::class
         ]
     ,   version = 1 )
 abstract class AppDatabase : RoomDatabase() {
@@ -212,4 +244,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract val movies_preview: MoviePreviewInfoDao
     abstract val movies_preview_full: MoviePreviewFullInfoDao
     abstract val movies_page: MoviePageInfoDao
+    abstract val favorites: FavoriteDao
 }

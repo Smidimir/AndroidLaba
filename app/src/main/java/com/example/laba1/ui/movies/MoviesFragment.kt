@@ -1,5 +1,6 @@
 package com.example.laba1.ui.movies
 
+import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -9,10 +10,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.room.Room
 import com.example.laba1.*
-import com.squareup.picasso.Callback
 import com.squareup.picasso.Picasso
 import kotlinx.android.synthetic.main.card_layout.view.*
 import kotlinx.android.synthetic.main.fragment_movies.*
@@ -22,6 +23,7 @@ import java.lang.ref.WeakReference
 
 class MoviesFragment : Fragment() {
     var db: AppDatabase? = null
+    var userId: Int = -1
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -114,8 +116,8 @@ class MoviesFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         activity?.apply{
             db = Room.databaseBuilder(applicationContext, AppDatabase::class.java, "db").build()
+            userId = intent.getIntExtra("userId", -1)
         }
-        assert(db != null)
 
         loadFromCache { cacheList ->
             if(cacheList.isNotEmpty()) {
@@ -133,6 +135,25 @@ class MoviesFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
     }
 
+    fun addFavorite(favorite: Favorite) {
+        class AddFavoriteTask(val wActivity: WeakReference<Activity>) : AsyncTask<Unit, Unit, Unit>()
+        {
+            override fun doInBackground(vararg params: Unit?) {
+                db!!.favorites.insert(favorite)
+            }
+
+            override fun onPostExecute(result: Unit?) {
+                wActivity.get()?.apply {
+                    if (!isFinishing) {
+                        Toast.makeText(this, "Added to Favorites", Toast.LENGTH_LONG).show()
+                    }
+                }
+                super.onPostExecute(result)
+            }
+        }
+        AddFavoriteTask(WeakReference(requireActivity())).execute()
+    }
+
     fun createCard(imdbElementInfo: MoviePreviewFullInfo)
     {
         val cardWidget = layoutInflater.inflate(R.layout.card_layout, frMoviesVll, false)
@@ -142,12 +163,34 @@ class MoviesFragment : Fragment() {
 
         Picasso.get().load(imdbElementInfo.imageUrl).into(cardWidget.cardImage)
 
-        cardWidget.setOnClickListener {
+        val showMovieInfo = {
             startActivity(
                 Intent(context, MovieInfoActivity::class.java).apply {
+                    putExtra("userId", userId)
                     putExtra("movieId", imdbElementInfo.movieId)
                 }
             )
+        }
+
+        cardWidget.setOnClickListener{
+            showMovieInfo()
+        }
+
+        registerForContextMenu(cardWidget)
+        cardWidget.setOnCreateContextMenuListener { menu, v, menuInfo ->
+            //menu.setHeaderTitle("Context Menu");
+            menu.add(0, v.id, 0, "Info").setOnMenuItemClickListener {
+                showMovieInfo()
+                true
+            }
+            menu.add(0, v.id, 0, "Add To Favorite").setOnMenuItemClickListener {
+                addFavorite(Favorite(userId, imdbElementInfo.movieId))
+                true
+            }
+        }
+
+        frMoviesBtnToTop.setOnClickListener {
+            frMoviesScroll.smoothScrollTo(0, 0)
         }
 
         frMoviesVll.addView(cardWidget)

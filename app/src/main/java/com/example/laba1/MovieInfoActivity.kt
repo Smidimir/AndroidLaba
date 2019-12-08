@@ -13,16 +13,6 @@ import kotlinx.android.synthetic.main.activity_movie_info_content.*
 import org.jsoup.Jsoup
 import java.lang.ref.WeakReference
 
-data class MovieInfoData(
-    val title: String,
-    val description: String,
-    val imdbRating: String,
-    val ganres: String,
-    val duration: String,
-    val releaseData: String,
-    val imageUtl: String
-)
-
 class MovieInfoActivity : AppCompatActivity() {
     var db: AppDatabase? = null
 
@@ -126,6 +116,7 @@ class MovieInfoActivity : AppCompatActivity() {
         db = Room.databaseBuilder(applicationContext, AppDatabase::class.java, "db").build()
         assert(db != null)
 
+        val userId = intent.getIntExtra("userId", -1)
         val movieId = intent.getIntExtra("movieId", -1)
 
         title = "Loading..."
